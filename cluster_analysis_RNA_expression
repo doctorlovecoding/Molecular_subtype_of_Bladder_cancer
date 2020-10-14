@@ -1,0 +1,233 @@
+#=======================================================
+
+BLCA mRNA cluster analysis
+
+#=======================================================
+#load data , delete useless genes
+setwd("E:\\Rwork")
+
+require(dplyr)
+require(tidyr)
+load("mRNA_exprSet.Rda")
+mRNA <- mRNA_exprSet
+index <- duplicated(mRNA$gene_name)
+mRNA.data <- mRNA [!index,]
+dim(mRNA.data)
+
+#========================================================
+#select tumor data
+index <- as.numeric(substr(colnames(mRNA.data),start = 14, stop = 15))
+mRNA.data1 <-  mRNA.data[,which(index == 1)] 
+mRNA.data <- cbind(mRNA.data[,1],mRNA.data1 )
+
+write.csv(mRNA.data, file = "BLCAmRNA.FPKM.csv", row.names = F)
+
+#========================================================
+# log2 and delete low expression genes 
+
+rt <-   read.csv("BLCAmRNA.FPKM.csv",header = T,row.names = 1)
+rt=log2(rt[,1:ncol(rt)]+1)
+flag <- apply(rt, 1, function(x) sum( x == 0) < 250)
+rt <- rt[which(flag),]
+
+#========================================================
+# delete  genes by row mean 
+
+means <- apply(rt,1,mean)
+rt_mean <- rt[rev(order(means))[1:10000],]
+dim(rt_mean)
+
+#=======================================================
+# delete  genes by row SD 
+
+mads=apply(rt_mean,1,mad)
+rt_mads = rt_mean[rev(order(mads))[1:3000],]
+
+#=======================================================
+#apply ConsensusCluster analysis
+
+rt_nor=sweep(rt_mads,1, apply(rt_mads,1,median,na.rm=T)) #
+library(ConsensusClusterPlus)
+title=tempdir()
+title="77"
+rt_nor <- as.matrix(rt_nor)
+results = ConsensusClusterPlus(rt_nor,maxK=6,reps=50,pItem=0.8,pFeature=1,
+                               clusterAlg="hc", 
+                               distance="pearson",
+                               innerLinkage="complete",
+                               seed=1262118388.71279,
+                               plot="pdf")    
+#save the result
+results2 <-results[[2]]["consensusClass"] 
+results3 <-results[[3]]["consensusClass"] 
+results4 <-results[[4]]["consensusClass"]
+results5 <-results[[5]]["consensusClass"]
+results6 <-results[[6]]["consensusClass"]
+as.data.frame(results2)
+as.data.frame(results3)
+as.data.frame(results4)
+as.data.frame(results5)
+as.data.frame(results6)
+new<-data.frame(results2,results3,results4,results5,results6)  
+write.csv(new,file = "BLCAmRNAcluster.csv")    
+
+
+
+
+
+
+#=======================================================
+
+BLCA miRNA cluster analysis
+
+#=======================================================
+#load data, delete useless genes such as duplicated genes
+
+setwd("E:\\Rwork")
+miRNA<- read.table("BLCA.miRseq_mature_RPM.txt",header = T, 
+                   stringsAsFactors = F, quote = "")
+
+
+
+index <- duplicated(miRNA$Gene)
+miRNA.data <- miRNA [!index,]
+
+#=======================================================
+#select expression data of tumor samples from normal samples
+
+index <- as.numeric(substr(colnames(miRNA.data),start = 14, stop = 15))
+miRNA.data1 <-  miRNA.data[,which(index == 1)] 
+miRNA.data <- cbind(miRNA.data[,1],miRNA.data1 )
+rt <- miRNA.data
+
+#========================================================
+# log2 and delete low expression genes 
+
+rt [is.na(rt)] <- 0
+flag <- apply(rt, 1, function(x) sum( x == 0) < 300)
+rt <- rt[which(flag),]
+rt=log2(rt[,1:ncol(rt)]+1)
+fix(rt)
+
+#=======================================================
+# delete 25% genes by row mean 
+
+means <- apply(rt,1,mean)
+rt_mean <- rt[rev(order(means))[1:400],]
+dim(rt_mean)
+#=======================================================
+# delete 25% genes by row mad  
+
+mads=apply(rt_mean,1,mad)
+rt_mads = rt_mean[rev(order(mads))[1:300],]
+rt_nor=sweep(rt_mads,1, apply(rt_mads,1,median,na.rm=T)) 
+
+#=======================================================
+#ConsensusCluster was uterlized
+
+library(ConsensusClusterPlus)
+title=tempdir()
+title="miRNA"
+rt_nor <- as.matrix(rt_nor)
+results = ConsensusClusterPlus(rt_nor,maxK=6,reps=50,pItem=0.8,pFeature=1,
+                               clusterAlg="hc",
+                               distance="pearson",
+                               innerLinkage="complete",
+                               seed=1262118388.71279,
+                               plot="pdf")    figure separately
+                               
+#=======================================================
+
+#========================================================
+#save the result
+results2 <-results[[2]]["consensusClass"] 
+results3 <-results[[3]]["consensusClass"] 
+results4 <-results[[4]]["consensusClass"]
+results5 <-results[[5]]["consensusClass"]
+results6 <-results[[6]]["consensusClass"]
+as.data.frame(results2)
+as.data.frame(results3)
+as.data.frame(results4)
+as.data.frame(results5)
+as.data.frame(results6)
+new<-data.frame(results2,results3,results4,results5,results6) 
+write.csv(new,file = "BLCAmiRNAcluster.csv")   
+
+#=======================================================
+
+
+
+
+
+#========================================================
+
+
+BLCA LncRNA cluster Analysis
+
+#=======================================================
+#load data , delete useless genes
+setwd("E:\\Rwork")
+
+require(dplyr)
+require(tidyr)
+load("LncRNA_exprSet.Rda")
+LncRNA <- LncRNA_exprSet
+index <- duplicated(LncRNA$gene_name)
+LncRNA.data <- LncRNA[!index,]
+
+#=======================================================
+#select tumor data
+
+index <- as.numeric(substr(colnames(LncRNA.data),start = 14, stop = 15))
+LncRNA.data1 <-  LncRNA.data[,which(index == 1)] 
+LncRNA.data <- cbind(LncRNA.data[,1],LncRNA.data1 )
+
+#=======================================================
+# log2 and delete low expression genes 
+
+rt <-   read.csv("BLCALncRNA.FPKM.csv",
+                 header = T,row.names = 1)
+rt=log2(rt[,1:ncol(rt)]+1)
+flag <- apply(rt, 1, function(x) sum( x == 0) < 250)
+rt <- rt[which(flag),]
+
+#=======================================================
+# delete 25% genes by row mean 
+
+means <- apply(rt,1,mean)
+rt_mean <- rt[rev(order(means))[1:10000],]
+dim(rt_mean)
+
+#=======================================================
+# delete 25% genes by row SD 
+
+mads=apply(rt_mean,1,mad)
+rt_mads = rt_mean[rev(order(mads))[1:3000],]
+
+#=======================================================
+#apply ConsensusCluster analysis
+
+rt_nor=sweep(rt_mads,1, apply(rt_mads,1,median,na.rm=T)) 
+library(ConsensusClusterPlus)
+title=tempdir()
+title="77"
+rt_nor <- as.matrix(rt_nor)
+results = ConsensusClusterPlus(rt_nor,maxK=6,reps=50,pItem=0.8,pFeature=1,
+                               clusterAlg="hc",
+                               distance="pearson",
+                               innerLinkage="complete",
+                               seed=1262118388.71279,
+                               plot="pdf")  
+
+results2 <-results[[2]]["consensusClass"] 
+results3 <-results[[3]]["consensusClass"] 
+results4 <-results[[4]]["consensusClass"]
+results5 <-results[[5]]["consensusClass"]
+results6 <-results[[6]]["consensusClass"]
+as.data.frame(results2)
+as.data.frame(results3)
+as.data.frame(results4)
+as.data.frame(results5)
+as.data.frame(results6)
+new<-data.frame(results2,results3,results4,results5,results6)  
+write.csv(new,file = "BLCALncRNAcluster.csv")   
