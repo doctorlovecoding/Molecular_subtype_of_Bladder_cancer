@@ -1,0 +1,132 @@
+setwd("E:\\Rwork")
+
+library(pheatmap)
+library(RColorBrewer)
+
+
+annotation_col <- read.csv("BLCA.anno.heatmap.genename.csv",
+                           header = T,row.names = 1)
+library(dplyr)
+annotation_col <- annotation_col %>%
+  dplyr::select(Age,Gender,Smoking,Grade,
+                Stage,Hiotology,Status,Subtype,)
+annotation_col <- data.frame(annotation_col)
+
+annotation_col$miRNA_cluster <- NULL
+annotation_col$mRNA_cluster <- NULL
+annotation_col$lncRNA_cluster <- NULL
+annotation_col$Subtype <- as.factor(annotation_col$Subtype)
+annotation_col$Stage  <- as.factor(annotation_col$Stage)
+annotation_col$Hiotology <- as.factor(annotation_col$Hiotology)
+annotation_col$Status <- as.factor(annotation_col$Status)
+annotation_col$Age  <- as.integer(annotation_col$Age)
+annotation_col$Gender <- as.factor(annotation_col$Gender)
+annotation_col$Smoking <- as.factor(annotation_col$Smoking)
+annotation_col$Grade   <- as.factor(annotation_col$Grade)
+annotation_col$Status <- ifelse(annotation_col$Status == "Not Applicable",
+                                "Alive","Dead")
+annotation_col$Smoking <- ifelse(annotation_col$Smoking == 1,
+                                "non-smoker","smoker")
+annotation_col$Status <- as.factor(annotation_col$Status)
+annotation_col$Smoking <- as.factor(annotation_col$Smoking)
+annotation_col$Age  <-  ifelse(annotation_col$Age %in% (76:90), 4, 
+                        ifelse(annotation_col$Age %in% (69:75),3,
+                        ifelse(annotation_col$Age %in% (60:69),2,1)))
+annotation_col$Age  <- as.factor(annotation_col$Age)
+
+
+
+library(RColorBrewer)
+set1 <- c(brewer.pal(12,"Paired"),brewer.pal(8,"Dark2"))
+set2 <- c(brewer.pal(9,"Spectral"))
+# Specify colors
+Subtype = c("#BC3C28", "#0072B5")
+names(Subtype) = c("1", "2")
+Stage = c("deepskyblue4","cyan","coral","firebrick4","gray7")
+names(Stage) = c("Stage I","Stage II",
+                 "Stage III","Stage IV","Not Available")
+Hiotology  = c(set1[9],'#925E9F','#42B540',"gray7")
+names(Hiotology) = c("Discrepancy","Non-Papillary",
+                     "Papillary","Not Available")
+Status = c("#00A1D5","#374E55")
+names(Status) = c("Alive","Dead")
+
+Smoking = brewer.pal(5,"Set2")[1:2]
+names(Smoking) = c("non-smoker","smoker")
+Gender = brewer.pal(5,"Dark2")[3:4]
+names(Gender) = c("MALE","FEMALE")
+Age = set2[1:4]
+names(Age) = c("4","3","2","1")
+Grade = c("#FF7F0D","#2CA02C","gray7")
+names(Grade)  = c("High Grade","Low Grade","Unknown")
+
+
+ann_colors = list(Subtype = Subtype,
+                  Age = Age,
+                  Gender = Gender,
+                  Smoking= Smoking,
+                  Grade = Grade,
+                  # miRNA_cluster = miRNA_cluster, 
+                  # miRNA_cluster=miRNA_cluster,
+                  # lncRNA_cluster=lncRNA_cluster,
+                  Stage = Stage,
+                  Status = Status,
+                  Hiotology = Hiotology )
+
+
+
+
+basal_luminal <- read.csv("basal_luminal_marker.csv",
+                          header = T,
+                          row.names = 1)
+
+basal_luminal <- t(basal_luminal)
+basal_luminal <- basal_luminal[-1,]
+basal <- basal_luminal[1:10,]
+luminal <- basal_luminal[11:24,]
+basal =(log2(basal+1))
+luminal = (log2(luminal+1))
+# bk = unique(c(seq(-3,5, length=50)))
+pdf("basal.pdf",width = 18,height = 18)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+p1 = pheatmap(basal, scale = 'row',
+         cluster_cols = FALSE,
+         # breaks = bk,
+         cluster_row = T,
+         border_color  = NA,
+         annotation_colors = ann_colors,
+         show_colnames     = FALSE,
+         show_rownames     = FALSE,
+         color = colorRampPalette(c("#20B6E2",
+                                    "#020303",
+                                    "#F5EB17"))(50),
+         legend = FALSE,
+         annotation_col = annotation_col,
+         annotation_legend = T,treeheight_row=0,
+         treeheight_col=0,
+         fontsize = 16,
+         fontsize_row=6, 
+         fontsize_col = 6)
+dev.off()
+# bk = unique(c(seq(0,12, length=50)))
+pdf("luminal.pdf",width = 8,height = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+library(pheatmap)
+pheatmap(luminal, cluster_cols = FALSE,
+         scale = "row",
+         cluster_row = T,
+         border_color  = NA,
+         # breaks = bk,
+         show_colnames     = FALSE,
+         show_rownames     = FALSE,
+         color = colorRampPalette(c("#20B6E2",
+                                    "#020303",
+                                    "#F5EB17"))(50), 
+         legend = FALSE,
+          treeheight_row=0,
+         treeheight_col=0,
+         fontsize = 6.5,
+         fontsize_row=6, 
+         fontsize_col = 6) 
+
+dev.off()
