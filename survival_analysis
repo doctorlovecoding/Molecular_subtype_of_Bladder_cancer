@@ -1,0 +1,197 @@
+rm(list=ls())
+options(stringsAsFactors = F)
+rt <- read.csv("TCGAForSur.csv",header = T)
+library(survminer)
+library(survival)
+
+rt$CLIC4 <- ifelse(rt$CLIC4 > median(rt[,"CLIC4"]),"high","low")
+rt$GATA3 <- ifelse(rt$GATA3  > median(rt[,"GATA3"]), "high","low")
+rt$PALLD <- ifelse(rt$PALLD > median(rt[,"PALLD"]),"high","low")
+rt$MIR100HG <- ifelse(rt$MIR100HG > median(rt[,"MIR100HG"]),"high","low")
+rt$AC010326.3 <- ifelse(rt$AC010326.3  > median(rt[,"AC010326.3"]), "high","low")
+rt$AC073335.2 <- ifelse(rt$AC073335.2> median(rt[,"AC073335.2"]),"high","low")
+rt$hsa-miR-141-3p <- ifelse(rt$hsa-miR-141-3p > median(rt[,"hsa-miR-141-3p"]),"high","low")
+rt$hsa-miR-200c-3p<- ifelse(rt$hsa-miR-200c-3p  > median(rt[,"hsa-miR-200c-3p"]), "high","low")
+rt$hsa-miR-141-5p <- ifelse(rt$hsa-miR-141-5p > median(rt[,"hsa-miR-141-5p"]),"high","low")
+
+
+
+fit_GATA3 <- survfit(Surv(futime, fustat) ~ GATA3 , data = rt)
+fit_PALLD <- survfit(Surv(futime, fustat) ~ PALLD , data = rt)
+fit_CLIC4 <- survfit(Surv(futime, fustat) ~ CLIC4 , data = rt)
+fit_GATA3 <- survfit(Surv(futime, fustat) ~ GATA3 , data = rt)
+fit_MIR100HG <- survfit(Surv(futime, fustat) ~ MIR100HG, data = rt)
+fit_AC010326.3 <- survfit(Surv(futime, fustat) ~ AC010326.3 , data = rt)
+fit_hsa-miR-141-3p <- survfit(Surv(futime, fustat) ~ hsa-miR-141-3p , data = rt)
+fit_hsa-miR-200c-3p <- survfit(Surv(futime, fustat) ~ hsa-miR-200c-3p , data = rt)
+fit_hsa-miR-141-5p <- survfit(Surv(futime, fustat) ~ hsa-miR-141-5p , data = rt)
+
+
+pdf(file="GATA3_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_GATA3, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c( "#377EB8","#E41A1C"),
+                     legend.labs =c("GATA3 Low Expression", "GATA3 HighExpression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+
+pdf(file="CLIC4_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_CLIC4, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("GATA3 HighExpression", "GATA3 LowExpression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+
+pdf(file="hsa-miR-141-3p_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_hsa-miR-141-3p, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("hsa-miR-141-3p High Expression", "GATA3 Low Expression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+pdf(file="hsa-miR-200c-3p_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_hsa-miR-200c-3p, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("hsa-miR-200c-3p High Expression", "hsa-miR-200c-3p Low Expression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+pdf(file="AC073335.2_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_AC073335.2, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("AC073335.2 High Expression", "AC073335.2 Low Expression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+pdf(file="hsa-miR-141-5p_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_hsa-miR-141-5p, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("hsa-miR-141-5p High Expression", "hsa-miR-141-5p Low Expression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+pdf(file="MIR100HG_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_MIR100HG, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("MIR100HG High Expression", "MIR100HG Low Expression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
+
+
+pdf(file="AC010326.3_survival.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+ggsurv <- ggsurvplot(fit_AC010326.3, data = rt,
+                     pval = T,
+                     xlim = c(0,2000),  
+                     break.time.by = 365,  
+                     xlab = "Time in days",
+                     palette = c("#E41A1C", "#377EB8"),
+                     legend.labs =c("AC010326.3 High Expression", "AC010326.3 Low Expression"))
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+
+ggsurv
+dev.off()
