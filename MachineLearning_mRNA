@@ -1,0 +1,573 @@
+# ================================================
+# Ensemble Learning on lncRNA expression data
+# ================================================
+
+
+#Section1 Decision Trees Model
+
+
+# ================================================
+
+setwd("E:\\Rwork")
+library(MASS)
+library(C50)
+DT_data <- read.csv("mRNA_for_DT.csv",header = T)
+DT_data <- DT_data[,-1]
+DT_data[is.na(DT_data)] <- 0
+
+set.seed(1234)
+#60% data for train and 40% data for test
+index <- sample(nrow(DT_data),0.6*nrow(DT_data))
+DT_train <- DT_data[index,]
+DT_test <- DT_data[-index,]
+DT_train$subtype <- as.character(DT_train$subtype)
+DT_train$subtype <- as.factor(DT_train$subtype)
+DT_test$subtype <- as.character(DT_test$subtype)
+DT_test$subtype <- as.factor(DT_test$subtype)
+
+set.seed(1234)
+tc <- C5.0Control(subset =F,
+                  CF=0.25,
+                  winnow=F,
+                  noGlobalPruning=F,
+                  minCases =20)
+
+
+lnc_DT <- C5.0( subtype ~.,
+               data    = DT_train,
+               rules   = F,
+               control = tc)
+summary(lnc_DT) 
+
+# ================================================
+# Create the confusion matrix
+
+pred1 <- predict(lnc_DT, DT_test)
+Freq1 <- table(pred1,DT_test$subtype)
+sum (diag(Freq1)) / sum(Freq1)
+
+# ================================================
+#Calculate AUC 
+
+library(ROCR)
+DT_testp <- predict(lnc_DT,DT_test,type='prob')[,2]
+DT_pred<-prediction(DT_testp,DT_test$subtype)
+DT_perf <- performance(DT_pred,"tpr","fpr")
+plot(DT_perf, col='blue',lty=2)
+auc <- performance(DT_pred,'auc')
+auc = unlist(slot(auc,"y.values"))
+
+plot(DT_perf,
+     xlim=c(0,1), ylim=c(0,1),col='red', 
+     main=paste("ROC curve (", "AUC For DT = ",auc,")"),
+     lwd = 2, cex.main=1.3, cex.lab=1.2, cex.axis=1.2, font=1.2)
+abline(0,1)
+
+# ================================================
+
+
+#Section2 Randome Forest Model
+
+
+# ================================================
+
+#load neccessary packages
+library(ggplot2)
+library(RColorBrewer)
+library(ggsci)
+library(randomForest)
+rf_data <- DT_data
+
+# ================================================
+#data was divided to train set(60%) and test set (40%)
+
+index <- sample(nrow(rf_data),0.6*nrow(rf_data))
+rf_train <- rf_data[index,]
+rf_test <- rf_data[-index,]
+rf_train$subtype <- as.character(rf_train$subtype)
+rf_train$subtype <- as.factor(rf_train$subtype)
+rf_test$subtype <- as.character(rf_test$subtype)
+rf_test$subtype <- as.factor(rf_test$subtype)
+
+
+# ================================================
+#-------------find the best mtry value---------------------
+
+n <- 25
+set.seed(1234)
+library(tcltk)
+pb<-tkProgressBar("Processing","Completed%",0,2500) 
+for (i in 1:(n)){
+  info<- sprintf("Processing %d%%", round(i*10/length(n)))  
+  setTkProgressBar(pb, i*100/length(n), sprintf("Completed (%s)", info),info)
+  mtry_fit <- randomForest(subtype~.,data = rf_train,mtry = i)
+  rf_testp <- predict(mtry_fit,rf_test,type='prob')[,2]
+  rf_pred<-prediction(rf_testp,rf_test$subtype)
+  rf_perf <- performance(rf_pred,"tpr","fpr")
+  auc <- performance(rf_pred,'auc')
+  auc = unlist(slot(auc,"y.values"))
+  print(auc )
+}
+
+
+RF.mtry <- read.csv("mRNA.RF.mtry.csv")
+library(ggplot2)
+library(RColorBrewer)
+library(ggsci)
+
+pdf(file="mRNA.RF.mtry.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+p1 <- ggplot(RF.mtry , aes(x=mtry, y=AUC))+
+  geom_point(size = 3.8,shape=1,color='#7AA6DC',stroke =1.2)
+
+p1 <- p1 +coord_cartesian(ylim=c(0.975, 0.995))
+scale_y_continuous(breaks=seq(0.975, 0.995, 0.007)) 
+
+p1 <- p1+scale_x_continuous(breaks=seq(0, 25, 5))+
+  geom_line(color='#7AA6DC', size=1.2)+
+  theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())+ 
+  geom_vline(aes(xintercept=7), 
+             colour="#990000",
+             linetype="dashed")
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5 ))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1 + xlab("mtry Number") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("AUC")+
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+
+p1
+dev.off()
+
+
+# ================================================
+#--------------find the best number of ntree---------------------
+
+m =  "best mtry number"
+for (i in c(100,200,300,400,500,600,700,800)){ 
+  for (j in c(m-2,m-1, m, m+1,m+2)){
+    set.seed(123)
+    rf=randomForest(subtype ~., data=rf_train,  
+                    mtry=j, ntree=i)
+    error_rate <- rf$err.rate[i]
+    if (exists('oob_err')==FALSE){
+      oob_err = c(i,j,error_rate) 
+    }
+    else{
+      oob_err = rbind(oob_err, c(i,j,error_rate)) mtry
+    }
+  }
+}
+oob_err <- as.data.frame(oob_err) 
+names(oob_err) <- c('ntree', 'mtry', 'oob_error_rate') 
+oob_err$mtry <- as.factor(oob_err$mtry) 
+library (ggplot2)
+oob_err <- oob_err[order(oob_err$mtry),]
+set1 <- c(brewer.pal(5,"Set1"))
+
+
+pdf(file="mRNA.RF.ntree.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+p1 <- ggplot(oob_err, aes(x=ntree, y=oob_error_rate, color=mtry))+
+  geom_point(size=3.8,shape=1,stroke =1.2)+
+  geom_line(size=2)+scale_color_manual(breaks = c("7", "8","9",
+                                                  "10", "11"),
+                                       values=set1) +
+  theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())
+
+p1 <- p1 + theme(legend.title   = element_text(size = 16, face = "bold"))+
+  theme(legend.background   = element_rect(fill = "white"))+
+  theme(legend.text = element_text(size = 14))+
+  theme(legend.position = "right")
+
+
+
+p1 <- p1 +coord_cartesian(ylim=c(0.04, 0.1))
+scale_y_continuous(breaks=seq(0.04, 0.1, 0.01)) 
+
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5 
+))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1 + xlab("TreeNumber") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("Oob Error Rate")+
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+p1 
+dev.off()
+
+
+# ================================================
+#---------------------establish the model-------------------------------
+
+set.seed(1234)
+rf <- randomForest(subtype~.,
+                   data = rf_train,
+                   mtry = 9,
+                   ntree = 300,
+                   importance= TRUE,
+                   proximity = TRUE)
+rf
+
+# ================================================
+# Create the confusion matrix
+
+
+pred1 <- predict(rf,rf_test)
+Freq1 <- table(pred1,rf_test$subtype)
+sum (diag(table(predict(rf,rf_test),
+                rf_test$subtype))) / sum(Freq1)
+
+# ================================================
+#-------- calculate AUC -------------------------
+
+library(ROCR)
+rf_testp <- predict(rf,rf_test,type='prob')[,2]
+rf_pred<-prediction(rf_testp,rf_test$subtype)
+rf_perf <- performance(rf_pred,"tpr","fpr")
+plot(rf_perf, col='blue',lty=2)
+auc <- performance(rf_pred,'auc')
+auc = unlist(slot(auc,"y.values"))
+plot(rf_perf,
+     xlim=c(0,1), ylim=c(0,1),col='red', 
+     main=paste("ROC curve (", "AUC For RF = ",auc,")"),
+     lwd = 2, cex.main=1.3, cex.lab=1.2, cex.axis=1.2, font=1.2)
+abline(0,1)
+
+# ================================================
+#-------- 10-fold Crossvalidation -------------------------
+
+data <- rf_train
+library("caret")  
+set.seed(1234)
+folds<-createFolds(y=data$subtype,k=10) 
+re <- {}
+for(i in 1:10){  
+  traindata <- data[-folds[[i]],]  
+  testdata <- data[folds[[i]],]  
+  rf <- randomForest(subtype ~ ., data=traindata, 
+                     ntree=200, proximity=TRUE,
+                     mtry = 16) 
+  
+  pred1 <- predict(rf,testdata)
+  Freq1 <- table(pred1,testdata$subtype)
+  temp<- sum(diag(Freq1))/sum(Freq1)
+  re <- c(re,temp)
+}  
+re <- as.data.frame(re)
+re$K.fold  <- row.names(re)
+names(re)[1] <- c("ACC")
+library (ggplot2)
+mi_rf_Kfold <- re
+
+set1 <- c(brewer.pal(5,"Set1"))
+pdf(file="mRNA.RF.Kfold.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+rf_Kfold$K.fold <- as.numeric(rf_Kfold$K.fold)
+rf_Kfold$pos <- rf_Kfold$K.fold == 11 
+rf_Kfold$pos  <- as.factor(rf_Kfold$pos)
+rf_Kfold$ACC   <- as.numeric(rf_Kfold$ACC)
+rf_Kfold$ACC <- round(rf_Kfold$ACC,2)
+
+
+
+p1 <- ggplot(lnc_rf_Kfold, aes(x=K.fold, y=ACC))+
+  geom_bar(aes(fill=pos),stat = "identity", width = 0.8)+
+  scale_fill_manual(values=set1[2:1])
+p1 <- p1 +  coord_cartesian(ylim=c(0.8, 1))+
+  scale_y_continuous(breaks=seq(0.8, 1, 0.04)) +
+  scale_x_continuous(breaks = seq(1,11,1))+
+  geom_text(aes(label = ACC), vjust = 1.5, 
+            colour = "black", position = position_dodge(.9), 
+            size = 5)+
+  theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())
+
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1 + xlab("KFold Number") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("Accuracy")+
+  theme(axis.title.y = element_text(size = 16,
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+p1 <- p1 + theme(legend.title = element_text(size = 16, face = "bold"))+
+  theme(legend.background   = element_rect(fill = "white"))+
+  
+  theme(legend.text = element_text(size = 14))+
+  guides(fill=FALSE)
+p1 
+dev.off()
+
+
+# ================================================
+#select important genes
+
+rf_importance <- as.data.frame(importance(rf , type=1))
+rf_importance$symbol <- row.names(rf_importance)
+
+rf_importance <- rf_importance[order(rf_importance$MeanDecreaseAccuracy,
+                                     decreasing = T),]
+rf_importance <-  rf_importance[which(rf_importance$MeanDecreaseAccuracy > 0),]
+
+
+
+
+
+# ================================================
+
+
+#Section3 XGboost Model
+
+
+# ================================================
+
+
+
+
+mydata <- DT_data
+mydata$subtype <- as.numeric(mydata$subtype)
+mydata$subtype <- mydata$subtype - 1
+set.seed(1234)
+trainIndex   <- createDataPartition(mydata$subtype, 
+                                    p=0.6, 
+                                    list=FALSE, 
+                                    times=1)
+train   <- mydata[trainIndex,]
+test    <- mydata[-trainIndex,]
+train.label  <- train$subtype
+test.label   <- test$subtype
+library(Matrix)
+dtrain  <- sparse.model.matrix(subtype ~ .-1, data=train)
+dtest   <- sparse.model.matrix(subtype ~ .-1, data=test)
+
+# ================================================
+#xgboost model constructed
+
+library(xgboost)
+param <- list(objective   = "binary:logistic",
+              eval_metric = "auc",
+              max_depth   = 14,
+              eta         = 0.001,
+              gammma      = 1,
+              colsample_bytree = 0.6,
+              min_child_weight = 1,
+              seed = 1234)
+              
+cv.res = xgb.cv(data = dtrain, nfold = 2,
+                nrounds = 5000,
+                label   = train.label, 
+                objective = "binary:logistic",
+                eval_metric = "auc")
+
+
+set1 <- c(brewer.pal(5,"Set1"))
+xg.cv <- read.csv("mRNA.xg.CV.csv")
+library(ggplot2)
+library(RColorBrewer)
+library(ggsci)
+pdf(file="mi.xg.cv.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+xval = mRNA.xg.cv$IterNumber/100
+mi.xg.cv$ACC  =  round(mRNA.xg.cv$ACC,2)
+p1 <- ggplot(xg.cv, aes(x=factor(IterNumber), y=ACC))+
+  geom_bar(fill=set1[2],stat = "identity", width = 0.8)
+
+p1 <- p1 + coord_cartesian(ylim=c(0.80, 095))+
+  scale_y_continuous(breaks=seq(0.80, 0.95, 0.04))+
+  geom_text(aes(label = ACC), vjust = 1.5, 
+            colour = "black", position = position_dodge(.9), 
+            size = 5)+
+  theme_bw() + 
+  theme(panel.background = element_rect(colour = "black", 
+                                        size = 1.5))+
+  theme(panel.grid.major  = element_line( size=0.1)) +
+  theme(panel.grid.minor = element_blank())
+
+p1 <- p1 + theme(axis.text.x = element_text(size = 16,  
+                                            vjust = 0.5, 
+                                            hjust = 0.5))+
+  theme(axis.text.y = element_text(size = 16,  
+                                   vjust = 0.5, 
+                                   hjust = 0.5))+
+  theme(axis.text.y.right = element_text(size = 16,  
+                                         vjust = 0.5, 
+                                         hjust = 0.5))
+
+
+
+p1 <- p1 + xlab("Iter Number") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("Accuracy")+
+  theme(axis.title.y = element_text(size = 16,
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+p1 <- p1 + theme(legend.title = element_text(size = 16, face = "bold"))+
+  theme(legend.background   = element_rect(fill = "white"))+
+  
+  theme(legend.text = element_text(size = 14))+
+  guides(fill=FALSE)
+p1 
+dev.off()
+
+
+
+system.time(xgb <- xgboost(params  = param,
+                           data    = dtrain,
+                           label   = train.label, 
+                           nrounds = 2000,
+                           print_every_n = 10,
+                           verbose = 1))
+
+# ================================================
+# Create the confusion matrix
+
+pred_xg <- predict(xgb, dtest)
+pred.resp <- ifelse(pred_xg >= 0.5, 1, 0)
+confusionMatrix(pred.resp, test.label, positive="1")
+
+# ================================================
+#xgboost auc
+
+library(ROCR)
+# Use ROCR package to plot ROC Curve
+xgb.pred <- prediction(pred_xg, test.label)
+xgb.perf <- performance(xgb.pred, "tpr", "fpr")
+plot(xgb.perf, col='blue',lty=2)
+auc <- performance(xgb.pred,'auc')
+auc = unlist(slot(auc,"y.values"))
+plot(xgb.perf,
+     xlim=c(0,1), ylim=c(0,1),col='red', 
+     main=paste("ROC curve for xgboost (", "AUC = ",auc,")"),
+     lwd = 2, cex.main=1.3, cex.lab=1.2, cex.axis=1.2, font=1.2)
+abline(0,1)
+
+
+# ================================================
+#select importance genes
+
+model <- xgb.dump(xgb, with_stats=TRUE)
+names <- dimnames(dtrain)[[2]]
+xg_importance_matrix <- xgb.importance(names, 
+                                       model = xgb)
+
+xg_importance_matrix <- xg_importance_matrix[order(xg_importance_matrix$Gain,
+                                                   decreasing = T),]
+
+names(xg_importance_matrix)[1] <- c("symbol")
+inter_importance <- merge(rf_importance,
+                          xg_importance_matrix,
+                          by="symbol")
+write.csv(inter_importance,
+          file = "blca.mRNA.rf.xg.intersect.csv",
+          row.names = F)
+          
+# ================================================
+#plot auc
+
+library(RColorBrewer)
+set1 = c(brewer.pal(9,"Set1"), 
+         brewer.pal(8, "Dark2"))
+
+pdf(file="mRNA.xg.rf_auc.pdf")
+library(ROCR)
+testp_rf <- predict(rf,rf_test,type='prob')[,2]
+pred_rf <- prediction(testp_rf,rf_test$subtype)
+perf_rf <- performance(pred_rf,"tpr","fpr")
+auc_rf <- performance(pred_rf,'auc')
+auc_rf = unlist(slot(auc_rf,"y.values"))
+plot(perf_rf,
+     xlim =c(0,1), ylim=c(0,1),col=set1[1], 
+     main = "",
+     lwd = 2, 
+     cex.main=1.3,
+     cex.lab=1.2, 
+     cex.axis=1.2,
+     font=1.2,
+)
+graphics::abline(a = 0,  b = 1,lwd = 2,lty=2)
+xgb.pred <- prediction(pred_xg, test.label)
+xgb.perf <- performance(xgb.pred, "tpr", "fpr")
+auc_xg <- performance(xgb.pred,'auc')
+auc_xg = unlist(slot(auc_xg,"y.values"))
+plot(xgb.perf,col=set1[2],add = TRUE,lwd = 2)
+plot(DT_perf, col=set1[9],add = TRUE,lwd = 2)
+legend("bottomright", bty = "n" ,
+       col=c(set1[1],set1[2], set1[9]), 
+       lty=1, c("XG Auc : 0.986",
+                "RF Auc : 0.984",
+                "DT Auc : 0.867"),lwd=2)
+
+dev.off()
