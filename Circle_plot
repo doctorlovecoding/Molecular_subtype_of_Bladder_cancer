@@ -1,0 +1,198 @@
+# ==============================================
+#   
+#   
+#   
+# ==============================================  
+setwd("E:\\Rwork")
+# dat$chrom <- gsub("chr", "",dat$chrom)
+options(stringsAsFactors = FALSE)
+set.seed(999)
+library("OmicCircos")
+load("importance.Rda")
+
+# ==============================================
+#   
+#   
+#   
+# ==============================================  \
+mi_diff <- read.csv("TCGA_BLCA_mi_fpkm_result_diff.csv",header = T)
+mRNA_diff   <- read.csv("TCGA_BLCA_lnc_fpkm_result_diff.csv")
+lnc_diff <- read.csv("mRNA_BLCA_fpkm_diff.csv")
+
+library(stringr)
+mi_diff$gene_id <- stringr::str_sub(mi_diff$id,-12)
+library(dplyr)
+library(tidyr)
+mi_diff <- mi_diff %>%
+  tidyr::separate(id,into=c("id","gene_name"),sep="\\|") %>%
+  dplyr::select(c(1,3,4,5,6))
+
+names(mi_diff)[2] <- c("id")
+
+
+dim(mi_diff)
+dim(mRNA_diff)
+dim(lnc_diff)
+
+diff <- rbind(mi_diff,mRNA_diff,lnc_diff)
+
+load("importance.Rda")
+View(importance)
+names(importance)[4] <- c("id")
+diff_p <- diff %>%
+  dplyr::filter(id %in% (importance$id)) %>%
+  dplyr::inner_join(importance,by="id")  %>%
+  dplyr::select(c(Chromosome,chromStart,pval))
+
+diff_fc <- diff %>%
+  dplyr::filter(id %in% (importance$id)) %>%
+  dplyr::inner_join(importance,by="id")  %>%
+  dplyr::select(c(Chromosome,chromStart,fc))
+
+# =======================================================
+# 
+# 
+# =======================================================
+
+library(dplyr)
+library(stringr)
+# setwd("E:\\Rwork")
+# 
+# mRNA <- read.csv('mRNA_for_DT_genename.csv',header = T)
+# lnc <- read.csv("lncRNA_for_DT_genename.csv",header = T)
+# mi <- read.csv("miRNA_for_DT_genename.csv",header = T)
+# 
+# 
+# sur <- read.csv("BLCA.cluster.survival.genename.csv",header = T)
+# sur$sample <- substr(sur$sample,start=1,stop=16)
+# 
+# mRNA <- mRNA %>%
+#   dplyr::filter(sample %in% sur$sample) %>%
+#   dplyr::select(-subtype) %>%
+#   dplyr::arrange(sample)
+# 
+# 
+# 
+# lnc <- lnc  %>%
+#   dplyr::filter(sample %in% sur$sample) %>%
+#   dplyr::select(-subtype)%>%
+#   dplyr::arrange(sample)
+# 
+# mi <- mi  %>%
+#   dplyr::filter(sample %in% sur$sample) %>%
+#   dplyr::select(-subtype)%>%
+#   dplyr::arrange(sample)
+# 
+# 
+# 
+# colnames(mi) <- stringr::str_sub(colnames(mi),-12)
+# 
+# allgene <- cbind(mi,lnc,mRNA)
+# 
+# allgene1 <- allgene[,which(colnames(allgene) %in% importance$id)]
+# allgene <- cbind(allgene1,allgene$sample)
+# 
+# write.csv(allgene,"allgene.csv")
+
+rt <- read.csv("allgene.csv",header = T,row.names=1)
+ 
+ 
+outTab=data.frame()
+library(survival)
+ 
+ rt1=log2(rt[,3:ncol(rt)]+1)
+ rt=cbind(rt[,1:2],rt1)
+
+# for(i in colnames(rt[,3:ncol(rt)])){
+#   cox <- coxph(Surv(futime, fustat) ~ rt[,i], data = rt)
+#   coxSummary = summary(cox)
+#   outTab=rbind(outTab,cbind(gene=i,HR=coxSummary$coefficients[,"exp(coef)"],
+#                             z=coxSummary$coefficients[,"z"],
+#                             pvalue=coxSummary$coefficients[,"Pr(>|z|)"]))
+# }
+# 
+# write.csv(outTab,file="allgene_3_33_univariateCox.csv",row.names=F)
+
+gene_for_sur <- read.csv("allgene_3_33_univariateCox.csv")
+names(gene_for_sur)[1] <- c("id")
+
+gene_for_sur1 <- merge(importance,gene_for_sur,by = "id")
+
+gene_for_sur1 <- gene_for_sur1[,-c(1,4)]
+
+# ================================================================
+# 
+# 
+# 
+# ================================================================
+
+
+rt <- rt[,-c(1,2)]
+library(Hmisc)
+CorMatrix <- function(cor,p) {ut <- upper.tri(cor) 
+data.frame(row = rownames(cor)[row(cor)[ut]] ,
+           column = rownames(cor)[col(cor)[ut]], 
+           cor =(cor)[ut], 
+           p = p[ut] ) }
+
+res <- rcorr(as.matrix(rt))
+gene_cor<-CorMatrix (res$r,res$P)
+
+
+
+importance1 <- importance[,c(1,2,4)]
+importance2 <- importance1
+
+names(importance1)[3] <- c("row")
+names(importance2)[3] <- c("column")
+
+gene_cor1 <- merge(gene_cor,importance1,by = "row")
+
+gene_cor1 <- gene_cor1 %>%
+  dplyr::select(c(Chromosome,chromStart,row,column,p,cor))
+
+names(gene_cor1) <- c("chr1","po1","gene1","column","p","cor")
+
+gene_cor2 <- merge(gene_cor1,importance2,by="column")
+
+gene_cor2 <- gene_cor2 %>%
+  dplyr::select(c(chr1,po1,gene1,p,cor,Chromosome,chromStart,column))
+
+names(gene_cor2) <- c("chr1","po1","gene1","p","cor","chr2","po2","gene2")
+
+core = 0.8
+pval = 0.01
+
+gene_cor2 <- gene_cor2[( (abs(gene_cor2$cor)) > core ) & (gene_cor2$p < pval),]
+
+gene_cor2 <- gene_cor2  %>%
+  dplyr::select(c(chr1,po1,gene1,chr2,po2,gene2))
+
+# =============================================================
+# 
+# 
+# 
+# 
+# =============================================================
+
+diff_fc1 <- diff_fc %>%
+  dplyr::filter(fc < 3)
+
+library(RColorBrewer)
+set1 = c(brewer.pal(9,"Set1"), brewer.pal(8, "Dark2"))
+set2 = c(brewer.pal(8,'Accent'), brewer.pal(12,'Paired'),brewer.pal(8,'Pastel2'))
+set3 = c(brewer.pal(8,'Set2'))
+
+type = "chr"
+par(mar=c(1,1,1,1))
+plot(c(1,800),c(1,800),type="n",axes=FALSE,xlab="",ylab="")
+#chromsom
+circos(R=350, cir="hg19",type="chr",W=10,scale=TRUE,print.chr.lab = TRUE)
+#gene location
+circos(R=300, cir="hg19",type="b3",W=40,mapping=importance,B=TRUE, col.v=2,col=set2[21])
+circos(R=300, cir="hg19",type="s2",W=40,mapping=importance,B=FALSE, col=set3[2],cex=0.5)
+circos(R=255, cir="hg19",type="b2",W=40,mapping=diff_p,B=TRUE, col=c('mediumblue','firebrick1'),lwd=2,cutoff=0.05, col.v=3)
+circos(R=210, cir="hg19",type="ml3",W=40, mapping=diff_fc,B=TRUE,col=set1[c(2,1)], lwd=2,cutoff=1,col.v = 3)
+circos(R=165, cir="hg19",type="b2",W=40,mapping=gene_for_sur1,B=TRUE, col=set1[c(13,14)],lwd=2,cutoff=0.05, col.v=6)
+circos(R=135, cir="hg19",type="b",W=40,mapping=importance,B=FALSE, col=set1[7],lwd=0.01,col.v=5)
+circos(R=115,cir="hg19",type="link",W=10,mapping=gene_cor2,col=set2[c(9:16)],lwd=0.5)
