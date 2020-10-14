@@ -1,0 +1,52 @@
+#加载相关扩展包
+library(ggradar)  
+library(dplyr)
+library(scales) 
+library(tibble)
+data("mtcars")
+#利用dplyr管道操作符重组绘图对象
+pdf(file='radar.pdf',height = 4,width = 4)
+mtcars_radar <-   mtcars %>%
+  rownames_to_column(var = "group" ) %>%
+  mutate_each(funs(rescale), -group)%>%
+  tail(12)%>% 
+  select(1:6)
+
+#ggradar函数绘制雷达图
+ggradar(mtcars_radar)
+
+
+# (1) Define the data building blocks required for plotting purposes [uses
+# a subset of the OAC results plotted above]
+
+var.names <- c("All Flats", "No central heating", "Rooms per\nhousehold", "People per room", 
+               "HE Qualification", "Routine/Semi-Routine\nOccupation", "2+ Car household", 
+               "Public Transport\nto work", "Work from home")
+var.order = seq(1:9)
+values.a <- c(-0.1145725, -0.1824095, -0.01153078, -0.0202474, 0.05138737, -0.1557234, 
+              0.1099018, -0.05310315, 0.0182626)
+values.b <- c(0.2808439, -0.2936949, -0.1925846, 0.08910815, -0.03468011, 0.07385727, 
+              -0.07228813, 0.1501105, -0.06800127)
+values.c <- rep(0, 9)
+group.names <- c("Blue Collar Communities", "Prospering Suburbs", "National Average")
+
+
+# (2) Create df1: a plotting data frame in the format required for ggplot2
+
+df1.a <- data.frame(matrix(c(rep(group.names[1], 9), var.names), nrow = 9, ncol = 2), 
+                    var.order = var.order, value = values.a)
+df1.b <- data.frame(matrix(c(rep(group.names[2], 9), var.names), nrow = 9, ncol = 2), 
+                    var.order = var.order, value = values.b)
+df1.c <- data.frame(matrix(c(rep(group.names[3], 9), var.names), nrow = 9, ncol = 2), 
+                    var.order = var.order, value = values.c)
+df1 <- rbind(df1.a, df1.b, df1.c)
+colnames(df1) <- c("group", "variable.name", "variable.order", "variable.value")
+df1
+
+
+
+# (3) Create a radial plot using ggplot2
+library(ggplot2)
+ggplot(df1, aes(y = variable.value, x = reorder(variable.name, variable.order), 
+                group = group, colour = group)) + coord_polar() + geom_point() + geom_path() + 
+  labs(x = NULL)
