@@ -1,0 +1,72 @@
+#====================================================
+
+#Cluster of Cluster analysis 
+
+#====================================================
+#load data
+
+setwd("E:\\Rwork")
+library(ConsensusClusterPlus)
+rt_nor <- read.csv("BLCA.Cluster.csv",header = T,
+                   row.names = 1,
+                   quote = "",stringsAsFactors = F)
+
+rt_nor <- t(rt_nor)
+
+#====================================================
+#apply cluster of cluster analysis
+
+title=tempdir()
+title="77"
+rt_nor <- as.matrix(rt_nor)
+results = ConsensusClusterPlus(rt_nor,maxK=6,reps=50,pItem=0.8,pFeature=1,# notice which maxK you set
+                               clusterAlg="hc", ### "pam","hc","km"
+                               distance="pearson",
+                               innerLinkage="complete",#implement consensus clustering with innerLinkage="complete". 
+                               seed=1262118388.71279,
+                               plot="pdf")   # plot="png" will keep figure separately
+#save the result
+results2 <-results[[2]]["consensusClass"] 
+results3 <-results[[3]]["consensusClass"] 
+results4 <-results[[4]]["consensusClass"]
+results5 <-results[[5]]["consensusClass"]
+results6 <-results[[6]]["consensusClass"]
+as.data.frame(results2)
+as.data.frame(results3)
+as.data.frame(results4)
+as.data.frame(results5)
+as.data.frame(results6)
+new<-data.frame(results2,results3,results4,results5,results6)  ### check
+write.csv(new,file = "BLCA.ClusterofCluster.csv")  
+
+
+#====================================================
+
+#Survival analysis of subtype
+
+#====================================================
+#load data 
+
+setwd("E:\\RworK")
+library(survival)
+library(survminer)
+data <- read.csv("BLCA_Cluster_survival.csv",header = T)
+
+#====================================================
+
+pdf(file="subtype_survival.pdf",height = 4, width = 4)
+fit <- survfit(Surv(futime, fustat) ~ subtype, 
+               data = data)
+ggsurv <- ggsurvplot(fit, data = data,
+                     pval = T,
+                     xlim = c(0,1825),  
+                     break.time.by = 365,  
+                     xlab = "Time in days")
+
+ggsurv <- ggpar( ggsurv,
+                 font.y  = c(16, "bold"), 
+                 font.x  = c(16, "bold"),
+                 legend = "top",
+                 font.legend = c(16, "bold"))
+ggsurv
+dev.off()
