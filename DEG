@@ -1,0 +1,231 @@
+# ===========================================================
+
+
+Section1   mRNA DEG
+
+
+# ===========================================================
+
+setwd("E:\\Rwork")
+library(tidyr)
+library('ballgown')
+load("mRNA_exprSet.Rda")
+index <- duplicated(mRNA_exprSet$gene_name)
+mRNA.data <- mRNA_exprSet[!index,]
+
+# ===========================================================
+
+BLCA_fpkm_data = mRNA.data
+rownames(BLCA_fpkm_data) = BLCA_fpkm_data[,1]
+BLCA_fpkm_data  =  BLCA_fpkm_data[c(-1)]
+load("mRNA_exprSet.Rda")
+metadata <- data.frame(names(mRNA_exprSet)[-1])
+for (i in 1:length(metadata[,1])) {
+  num <- as.numeric(substring(metadata[i,1],14,15))
+  if (num %in% seq(1,9)) {metadata[i,2] <- "T"}
+  if (num %in% seq(10,29)) {metadata[i,2] <- "N"}
+}
+names(metadata) <- c("TCGA_id","group")
+metadata$group <- as.factor(metadata$group)
+
+# ===========================================================
+
+result_diff = stattest(gowntable = BLCA_fpkm_data ,
+                       pData = metadata , 
+                       covariate = "group" , 
+                       getFC = TRUE , 
+                       log =TRUE,
+                       meas='FPKM',
+                       feature="gene")
+diffSig=result_diff[which(result_diff$pval<0.05  & (result_diff$fc>1.5 | result_diff$fc<0.67)),]
+inter_importance <- read.csv("blca.mRNA.rf.xg.intersect.genename.csv",
+                             header = T)
+merge_gene <- merge(inter_importance, diffSig, by= "id")
+write.csv(merge_gene, file = "merge_mRNA.csv") 
+
+# ===========================================================
+
+library(ggplot2)
+library(RColorBrewer)
+set1 = c(brewer.pal(9,"Set1"), 
+         brewer.pal(12, "Set3"))
+pdf(file = "mRNA_volcano.pdf",width=8,height=8)
+theme_set(theme_bw())
+threshold<-as.factor((result_diff$fc>1.5|result_diff$fc<0.67) & result_diff$pval<0.05)
+p <- ggplot(result_diff,aes(x = log2(result_diff$fc),
+                            y= -1*log10(result_diff$pval),
+                            colour = threshold))+xlab("Fold-Change(log2)")+
+                             ylab("P-Value(-log10)")+geom_point()
+p <- p + scale_color_manual(breaks = c("FALSE", "TRUE"),
+                        values=c("gray68", set1[1]))
+p <- p +theme(panel.grid =element_blank())+
+                 theme(axis.line = element_line(size=0))+
+                xlim(-4,4)+
+                 ylim(0,15)
+p <- p  +guides(colour = FALSE)
+p <- p +theme(axis.text=element_text(size=20),
+               axis.title=element_text(size=20))
+p
+dev.off()
+
+
+# ===========================================================
+
+
+Section2   miRNA DEG
+
+
+# ===========================================================
+
+setwd("E:\\Rwork")
+library(tidyr)
+library(ballgown)
+
+miRNA<- read.table("BLCA.miRseq_mature_RPM.txt",header = T, 
+                   quote = "")
+miRNA[is.na(miRNA)] <- 0
+index <- duplicated(miRNA$Gene)
+miRNA.data <- miRNA [!index,]
+names(miRNA.data)[1] <- 'genename'
+BLCA_fpkm_data <- miRNA.data
+
+# ========================================================
+  
+metadata <- data.frame(names(miRNA)[-1])
+for (i in 1:length(metadata[,1])) {
+  num <- as.numeric(substring(metadata[i,1],14,15))
+  if (num %in% seq(1,9)) {metadata[i,2] <- "T"}
+  if (num %in% seq(10,29)) {metadata[i,2] <- "N"}
+}
+names(metadata) <- c("TCGA_id","group")
+metadata$group <- as.factor(metadata$group)
+result_diff = stattest(gowntable = BLCA_fpkm_data ,
+                       pData = metadata , 
+                       covariate = "group" , 
+                       getFC = TRUE , 
+                       log =TRUE,
+                       feature="gene")
+write.csv(result_diff,'TCGA_BLCA_mi_fpkm_result_diff.csv')
+diffSig=result_diff[which(result_diff$pval<0.05  & (result_diff$fc>1.5 | result_diff$fc<0.67)),]
+write.csv(diffSig, file="diffSig_miRNA_BLCA.csv")
+
+#==========================================================================================================================================
+
+inter_importance <- read.csv("blca.mi.rf.xg.intersect.genename.csv",
+                             header = T)
+stringr::str_sub(diffSig$gene_id, -12)
+inter_importance$id <- stringr::str_sub(inter_importance$symbol, -12)
+diffSig$id  <- stringr::str_sub(diffSig$id,-12)
+merge_gene <- merge(inter_importance, diffSig, by= "id")
+write.csv(merge_gene, file = "merge_mi.csv")
+
+#==================================================================
+
+library(ggplot2)
+library(RColorBrewer)
+set1 = c(brewer.pal(9,"Set1"), 
+         brewer.pal(12, "Set3"))
+pdf(file = "mi_volcano.pdf",width=8,height=8)
+theme_set(theme_bw())
+threshold<-as.factor((result_diff$fc>1.5|result_diff$fc<0.67) & result_diff$pval<0.05)
+
+p <- ggplot(result_diff,aes(x = log2(result_diff$fc),
+                            y= -1*log10(result_diff$pval),
+                            colour = threshold))+xlab("Fold-Change(log2)")+
+  ylab("P-Value(-log10)")+geom_point()
+
+
+p <- p + scale_color_manual(breaks = c("FALSE", "TRUE"),
+                            values=c("gray68", set1[1]))
+
+p <- p +theme(panel.grid =element_blank())+
+  theme(axis.line = element_line(size=0))+
+  xlim(-4,4)+
+  ylim(0,15)
+
+p <- p  +guides(colour = FALSE)
+p <- p +theme(axis.text=element_text(size=20),
+              axis.title=element_text(size=20))
+p
+dev.off()
+
+
+# ===========================================================
+
+
+Section3   lncRNA DEG
+
+
+# ===========================================================
+
+setwd("E:\\Rwork")
+library(tidyr)
+library(ballgown)
+load("LncRNA_exprSet.Rda")
+index <- duplicated(LncRNA_exprSet$gene_name)
+LncRNA_exprSe1 <- LncRNA_exprSet[!index,]
+BLCA_fpkm_data = LncRNA_exprSe1
+rownames(BLCA_fpkm_data) = BLCA_fpkm_data[,1]
+BLCA_fpkm_data  =  BLCA_fpkm_data[c(-1)]
+
+metadata <- data.frame(names(LncRNA_exprSet)[-1])
+for (i in 1:length(metadata[,1])) {
+  num <- as.numeric(substring(metadata[i,1],14,15))
+  if (num %in% seq(1,9)) {metadata[i,2] <- "T"}
+  if (num %in% seq(10,29)) {metadata[i,2] <- "N"}
+}
+names(metadata) <- c("TCGA_id","group")
+metadata$group <- as.factor(metadata$group)
+
+metadata <- metadata[order(metadata$group),]
+result_diff = stattest(gowntable = BLCA_fpkm_data ,
+                       pData = metadata , 
+                       covariate = "group" , 
+                       getFC = TRUE , 
+                       log =TRUE,
+                       meas='FPKM',
+                       feature="gene")
+
+
+
+write.csv (result_diff,
+           "TCGA_BLCA_lnc_fpkm_result_diff.csv",
+           row.names = F)
+
+diffSig=result_diff[which(result_diff$pval<0.05  & (result_diff$fc>1.5 | result_diff$fc<0.67)),]
+
+
+inter_importance <- read.csv("blca.lnc.rf.xg.intersect.genename.csv",
+                             header = T)
+merge_gene <- merge(inter_importance, diffSig, by= "id")
+
+
+library(ggplot2)
+library(RColorBrewer)
+set1 = c(brewer.pal(9,"Set1"), 
+         brewer.pal(12, "Set3"))
+pdf(file = "lnc_volcano.pdf",width=8,height=8)
+theme_set(theme_bw())
+threshold<-as.factor((result_diff$fc>1.5|result_diff$fc<0.67) & result_diff$pval<0.05)
+
+p <- ggplot(result_diff,aes(x = log2(result_diff$fc),
+                            y= -1*log10(result_diff$pval),
+                            colour = threshold))+xlab("Fold-Change(log2)")+
+  ylab("P-Value(-log10)")+geom_point()
+
+
+p <- p + scale_color_manual(breaks = c("FALSE", "TRUE"),
+                            values=c("gray68", set1[1]))
+
+p <- p +theme(panel.grid =element_blank())+
+  theme(axis.line = element_line(size=0))+
+  xlim(-4,4)+
+  ylim(0,15)
+
+p <- p  +guides(colour = FALSE)
+p <- p +theme(axis.text=element_text(size=20),
+              axis.title=element_text(size=20))
+p
+dev.off()
+
+
