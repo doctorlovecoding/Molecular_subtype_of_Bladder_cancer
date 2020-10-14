@@ -1,0 +1,98 @@
+library(ggplot2)
+library(RColorBrewer)
+library(ggsci)
+library(ggthemes)
+library(scales)
+library(gridExtra)
+library(Rmisc)
+library(lattice)
+library(plyr)
+
+setwd("E:\\Rwork")
+dot_df <- read.csv("data.dotplot.csv",header = T, stringsAsFactors = F)
+
+dot_df$type[dot_df$NES > 0] = "subtype1"
+dot_df$type[dot_df$NES < 0] = "subtype2"
+
+dot_df_subtype1 <- subset(dot_df,dot_df$type == "subtype1")
+dot_df_subtype2 <- subset(dot_df,dot_df$type == "subtype2")
+
+
+
+set1 <- c(brewer.pal(12,"Set3"))
+set2 <- c(brewer.pal(9,"Set1"))
+
+pdf(file="subtypes_kegg.pdf",height = 8, width = 8)
+par(oma=c(2,2,1,2),mar=c(5,4,4,2))
+
+p1 <- ggplot() + theme_classic()+
+  geom_bar(mapping = aes(x = dot_df_subtype1$name, 
+                         y = dot_df_subtype1$SIZE),
+                   stat = "identity", fill = set1)+
+  geom_line(mapping = aes(x = dot_df_subtype1$name,
+                          y = dot_df_subtype1$FDR*3880 + 19 ),
+            group = 1, size = 2, color = "#E41A1C") +
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 20, 
+                                                       simplify = FALSE), paste, 
+                                               collapse="\n"))+
+  
+  theme(axis.text.x = element_text(size=12,
+                                   # face= "bold",
+                                   angle = 45, hjust = 0.5, 
+                                   vjust = 0.5))+
+  scale_y_continuous(breaks = seq(0,120,20), "Gene Numbers",
+                     sec.axis = sec_axis(~.*0.000257732+0.004896908, 
+                    name = "FDR"))+xlab("Kegg Pathway") 
+
+
+p1 <- p1 + xlab("Subtype1 Kegg Pathway") + 
+  theme(axis.title.x = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))+
+  
+  ylab("Gene Number") + 
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+
+
+
+
+p2 <- ggplot() + theme_classic()+
+  geom_bar(mapping = aes(x = dot_df_subtype2$name, 
+                         y = dot_df_subtype2$SIZE),
+           stat = "identity", fill = set1)+
+  geom_line(mapping = aes(x = dot_df_subtype2$name,
+                          y = dot_df_subtype2$FDR+100 ),
+            group = 1, size = 2, color = "#E41A1C") +
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 20, 
+                                                       simplify = FALSE), paste, 
+                                               collapse="\n"))+
+  
+  theme(axis.text.x = element_text(size=12,
+                                   # face= "bold",
+                                   angle = 45, 
+                                   hjust = 0.5, 
+                                   vjust = 0.5))+
+  scale_y_continuous(breaks = seq(0,270,50), "Gene Numbers",
+                     sec.axis = sec_axis(~.-100, 
+                                         name = "FDR"))
+p2 <- p2 + xlab("Subtype2 Kegg Pathway") + 
+           theme(axis.title.x = element_text(size = 16,
+                                       
+                                         face = "bold", 
+                                          vjust = 0.5, 
+                                          hjust = 0.5))+
+  
+  ylab("Gene Number") + 
+  theme(axis.title.y = element_text(size = 16,
+                                    
+                                    face = "bold", 
+                                    vjust = 0.5, 
+                                    hjust = 0.5))
+p3 <- grid.arrange(p1,p2,ncol=1)
+dev.off()
