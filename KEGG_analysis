@@ -1,0 +1,138 @@
+setwd("E:\\multi\\BLCA")
+
+
+library(DOSE)
+library(GO.db)
+library(org.Hs.eg.db)
+library(topGO)
+library(GSEABase)
+library(clusterProfiler)
+library(dplyr)
+library(tidyr)
+symbol <- read.csv("down.csv",header = T,row.names = 1)
+symbol <- rownames(symbol)
+
+
+
+
+
+gene = bitr(symbol,
+            fromType="SYMBOL", 
+            toType="ENTREZID", 
+            OrgDb="org.Hs.eg.db")
+head(gene)
+
+
+
+
+
+
+ekk <- enrichKEGG(gene         = gene$ENTREZID,
+                  organism     = 'hsa',
+                  pvalueCutoff = 0.05)
+keggtable <- setReadable(ekk,
+                         OrgDb = org.Hs.eg.db,
+                         keytype ="ENTREZID")
+write.csv(as.data.frame(keggtable),file = "KEGG-enrich.csv")
+
+
+
+ego_CC <- enrichGO(gene          = gene$ENTREZID,
+                   OrgDb         = org.Hs.eg.db,
+                   ont           = "CC",
+                   pAdjustMethod = "BH",
+                   pvalueCutoff  = 0.05)
+write.csv(as.data.frame(ego_CC),"G-enrich_CC.csv",row.names =F)
+
+
+
+
+
+ego_BP <- enrichGO(gene         = gene$ENTREZID,
+                   OrgDb         = org.Hs.eg.db,
+                   ont           = "BP",
+                   pAdjustMethod = "BH",
+                   pvalueCutoff  = 0.05)
+write.csv(as.data.frame(ego_BP),"G-enrich_BP.csv",row.names =F)
+
+
+
+
+
+
+ego_MF <- enrichGO(gene         = gene$ENTREZID,
+                   OrgDb         = org.Hs.eg.db,
+                   ont           = "MF",
+                   pAdjustMethod = "BH",
+                   pvalueCutoff  = 0.05)
+write.csv(as.data.frame(ego_MF),"G-enrich_MF.csv",row.names =F)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+setwd("E:\\multi\\BLCA")
+
+
+library(DOSE)
+library(GO.db)
+library(org.Hs.eg.db)
+library(topGO)
+library(GSEABase)
+library(clusterProfiler)
+library(dplyr)
+library(tidyr)
+symbol <- read.csv("up.csv",header = T,row.names = 1)
+symbol <- rownames(symbol)
+
+
+
+
+
+gene = bitr(symbol,
+            fromType="SYMBOL", 
+            toType="ENTREZID", 
+            OrgDb="org.Hs.eg.db")
+head(gene)
+
+
+
+
+
+
+ekk <- enrichKEGG(gene         = gene$ENTREZID,
+                  organism     = 'hsa',
+                  pvalueCutoff = 0.05)
+keggtable <- setReadable(ekk,
+                         OrgDb = org.Hs.eg.db,
+                         keytype ="ENTREZID")
+write.csv(as.data.frame(keggtable),file = "KEGG-enrich_up.csv")
+
+
+
+
+
+
+
+
+ego_BP <- enrichGO(gene         = gene$ENTREZID,
+                   OrgDb         = org.Hs.eg.db,
+                   ont           = "BP",
+                   pAdjustMethod = "BH",
+                   pvalueCutoff  = 0.05)
+write.csv(as.data.frame(ego_BP),"G-enrich_BP_up.csv",row.names =F)
+
