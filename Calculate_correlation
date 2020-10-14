@@ -1,0 +1,57 @@
+setwd("E:\\Rwork")
+
+annotation_col <- read.csv("BLCA.anno.heatmap.genename.csv",
+                           header = T,row.names = 1)
+library(dplyr)
+annotation_col <- annotation_col %>%
+  dplyr::select(Age,Gender,Smoking,Grade,
+                Stage,Hiotology,Status,Subtype,)
+annotation_col <- data.frame(annotation_col)
+
+
+
+
+annotation_col$Stage  <- as.factor(annotation_col$Stage)
+
+annotation_col$Hiotology <- as.factor(annotation_col$Hiotology)
+annotation_col$Status <- as.factor(annotation_col$Status)
+annotation_col$Age  <- as.integer(annotation_col$Age)
+annotation_col$Gender <- as.factor(annotation_col$Gender)
+
+annotation_col$Smoking <- as.factor(annotation_col$Smoking)
+annotation_col$Grade   <- as.factor(annotation_col$Grade)
+
+
+
+
+annotation_col$Status <- ifelse(annotation_col$Status == "Not Applicable",
+                                "Alive","Dead")
+
+annotation_col$Smoking <- ifelse(annotation_col$Smoking == 1,
+                                 "non-smoker","smoker")
+annotation_col$Status <- as.factor(annotation_col$Status)
+annotation_col$Smoking <- as.factor(annotation_col$Smoking)
+annotation_col$Age  <-  ifelse(annotation_col$Age %in% (76:90), 4, 
+                               ifelse(annotation_col$Age %in% (69:75),3,
+                                      ifelse(annotation_col$Age %in% (60:69),2,1)))
+
+annotation_col$Age  <- as.factor(annotation_col$Age)
+
+
+
+
+table(annotation_col$Age)
+table(annotation_col$Gender)
+
+table(annotation_col$Smoking)
+table(annotation_col$Subtype)
+table(annotation_col$Hiotology)
+table(annotation_col$Grade)
+
+
+
+
+
+chi.data <- data.frame(annotation_col$Subtype, annotation_col$Grade)
+chi.data  = table(annotation_col$Subtype, annotation_col$Grade) 
+chisq.test(chi.data)
